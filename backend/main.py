@@ -1,4 +1,6 @@
+import logging
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -6,9 +8,24 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
+from backend.database import verify_database_connection
 from backend.routers import auth, dashboard, projects, users
 
-app = FastAPI(title="MA Backend API", version="1.0.0")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    try:
+        verify_database_connection()
+        logger.info("Database connection verified.")
+    except Exception:
+        logger.exception("Database connection failed during startup.")
+        raise
+    yield
+
+
+app = FastAPI(title="MA Backend API", version="1.0.0", lifespan=lifespan)
 
 frontend_origins = os.getenv("FRONTEND_ORIGINS")
 frontend_origin_regex = os.getenv(
@@ -46,6 +63,12 @@ app.include_router(dashboard.router)
 @app.get("/")
 def root():
     return {"message": "MA FastAPI backend is running"}
+
+
+@app.get("/health")
+def health():
+    verify_database_connection()
+    return {"status": "ok", "database": "connected"}
 
 
 if __name__ == "__main__":

@@ -5,12 +5,14 @@ services:
     plan: free
     buildCommand: ./scripts/render-build.sh
     startCommand: ./scripts/render-start.sh
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.13.2"
       - key: ALLOW_ALL_ORIGINS
         value: "false"
+      - key: ENVIRONMENT
+        value: production
       - key: FRONTEND_ORIGINS
         value: https://ma-two-pearl.vercel.app
       - key: FRONTEND_ORIGIN_REGEX

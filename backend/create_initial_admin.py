@@ -5,7 +5,7 @@ Usage (from MA-api directory, after alembic upgrade head):
 
   python -m backend.create_initial_admin myadmin 'YourPassword8+'
 
-Requires DATABASE_URL or DB_* in .env. Password must be at least 8 characters.
+Requires DATABASE_URL (or local DB_* settings) in .env. Password must be at least 8 characters.
 """
 
 import argparse
