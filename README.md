@@ -1,12 +1,32 @@
 # MA FastAPI Backend
 
+## Deployment workflow (Render + Vercel)
+
+1. Connect the Render web service to the Render PostgreSQL database so `DATABASE_URL` is injected automatically.
+2. Set the frontend URL in `FRONTEND_ORIGINS` and deploy the Vercel app with `VITE_API_URL` pointing at the Render API.
+3. Redeploy the backend so build migrations and startup bootstrap run against the production database.
+4. If production should reuse existing local users, projects, assignments, and project data, copy application data before the first login test:
+   - `SOURCE_DATABASE_URL=postgresql://...local...`
+   - `TARGET_DATABASE_URL=postgresql://...render...`
+   - `python -m scripts.copy_application_data`
+5. Configure deployment login accounts on Render when a role account is missing:
+   - `INITIAL_ADMIN_USERNAME` / `INITIAL_ADMIN_PASSWORD`
+   - `INITIAL_USER_USERNAME` / `INITIAL_USER_PASSWORD`
+   - `INITIAL_VIEWER_USERNAME` / `INITIAL_VIEWER_PASSWORD`
+6. Keep `INITIAL_*_FIRST_LOGIN=false` for existing accounts that should open their dashboard immediately after login.
+7. Sign in at the Vercel `/login` page with the matching role credentials:
+   - Admin opens the admin dashboard.
+   - User opens assigned project workflows.
+   - Viewer opens read-only assigned project views.
+8. Check `GET /health` for database connectivity and table counts after deploy.
+
 ## Setup
 
 1. Create and activate virtual environment.
 2. Install dependencies:
    - `pip install -r requirements.txt`
 3. Configure environment variables in `.env`.
-4. Apply migrations: `alembic upgrade head`
+4. Apply migrations: `python -m alembic upgrade head`
 5. **First admin (empty database):**
    - `python -m backend.create_initial_admin <username> <password>`
    - Password must be at least 8 characters. Sign in via the app and complete First Login Setup if prompted.
