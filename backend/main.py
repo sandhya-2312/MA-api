@@ -12,6 +12,7 @@ load_dotenv()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 
 from backend.database import check_database_connection
+from backend.db_bootstrap import bootstrap_database
 from backend.routers import auth, dashboard, projects, users
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,10 @@ async def lifespan(_: FastAPI):
     connected, error = await asyncio.to_thread(check_database_connection)
     if connected:
         logger.info("Database connection verified during startup.")
+        try:
+            await asyncio.to_thread(bootstrap_database)
+        except Exception:
+            logger.exception("Database bootstrap failed during startup.")
     else:
         logger.warning(
             "Database is unavailable during startup. The API will continue running and retry on requests: %s",
