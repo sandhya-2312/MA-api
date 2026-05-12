@@ -50,6 +50,10 @@ def _read_first_login(env_name: str | None) -> bool:
 
 def ensure_deployment_accounts() -> int:
     created = 0
+    repaired = reconcile_deployment_accounts()
+    if repaired:
+        logger.info("Repaired %s deployment account record(s).", repaired)
+
     db = SessionLocal()
     try:
         for spec in DEPLOYMENT_ACCOUNT_SPECS:
@@ -114,6 +118,53 @@ def ensure_deployment_accounts() -> int:
         if created:
             db.commit()
         return created
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def reconcile_deployment_accounts() -> int:
+    repaired = 0
+    db = SessionLocal()
+    try:
+        for spec in DEPLOYMENT_ACCOUNT_SPECS:
+            username = _read_env_value(spec.env_username)
+            if not username:
+                continue
+
+            user = (
+                db.query(User).filter(func.lower(User.username) == username.lower()).first()
+            )
+            if not user:
+                continue
+
+            changed = False
+            if user.role != spec.role:
+                logger.warning(
+                    "Repairing deployment account %s role from %s to %s.",
+                    user.username,
+                    user.role,
+                    spec.role.value,
+                )
+                user.role = spec.role
+                changed = True
+
+            if spec.role == UserRole.ADMIN and not _read_first_login(spec.env_first_login) and user.first_login:
+                logger.warning(
+                    "Repairing deployment admin %s first_login flag from True to False.",
+                    user.username,
+                )
+                user.first_login = False
+                changed = True
+
+            if changed:
+                repaired += 1
+
+        if repaired:
+            db.commit()
+        return repaired
     except Exception:
         db.rollback()
         raise

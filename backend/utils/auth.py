@@ -8,9 +8,12 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from backend.config import get_secret_key
+from sqlalchemy import func
+
 from backend.database import get_db
 from backend.models.enums import UserRole
 from backend.models import User
+from backend.utils.roles import normalize_role, to_user_role
 
 load_dotenv()
 
@@ -23,6 +26,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
+    if "role" in to_encode:
+        to_encode["role"] = normalize_role(to_encode["role"])
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
@@ -45,22 +50,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError as exc:
         raise credentials_exception from exc
 
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(func.lower(User.username) == username.lower()).first()
     if not user:
         raise credentials_exception
+
+    normalized_role = to_user_role(user.role)
+    if normalized_role and normalized_role != user.role:
+        user.role = normalized_role
+        db.commit()
+        db.refresh(user)
+
     return user
 
 
 def require_roles(*allowed_roles: str | UserRole, allow_first_login: bool = False):
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        normalized_roles = {
-            role.value if isinstance(role, UserRole) else role for role in allowed_roles
-        }
-        current_role = (
-            current_user.role.value
-            if isinstance(current_user.role, UserRole)
-            else str(current_user.role)
-        )
+        normalized_roles = {normalize_role(role) for role in allowed_roles}
+        current_role = normalize_role(current_user.role)
         if current_role not in normalized_roles:
             raise HTTPException(status_code=403, detail="Not enough permissions")
         if current_user.first_login and not allow_first_login:
