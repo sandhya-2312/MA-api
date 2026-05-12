@@ -5,7 +5,7 @@ from functools import lru_cache
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import URL, make_url
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from backend.config import is_production
@@ -32,45 +32,35 @@ def _normalize_database_url(raw_url: str) -> str:
     return url
 
 
-def _build_local_database_url() -> str:
-    db_host = os.getenv("DB_HOST", "127.0.0.1")
-    db_port = os.getenv("DB_PORT", "5432")
-    db_user = os.getenv("DB_USERNAME", "postgres")
-    db_password = os.getenv("DB_PASSWORD", "postgres")
-    db_name = os.getenv("DB_DATABASE", "ma_db")
-    return URL.create(
-        "postgresql+psycopg2",
-        username=db_user,
-        password=db_password,
-        host=db_host,
-        port=int(db_port),
-        database=db_name,
-    ).render_as_string(hide_password=False)
-
-
 @lru_cache(maxsize=1)
 def get_database_url() -> str:
     raw_url = os.getenv("DATABASE_URL", "").strip()
-    if raw_url:
-        return _normalize_database_url(raw_url)
+    if not raw_url:
+        raise RuntimeError("DATABASE_URL is required.")
+    return _normalize_database_url(raw_url)
 
-    if is_production():
-        raise RuntimeError("DATABASE_URL is required in production.")
 
-    return _normalize_database_url(_build_local_database_url())
+def _build_connect_args(database_url: str) -> dict:
+    connect_args: dict = {
+        "connect_timeout": int(os.getenv("DATABASE_CONNECT_TIMEOUT", "10")),
+    }
+
+    sslmode = os.getenv("DATABASE_SSLMODE", "").strip()
+    if not sslmode:
+        host = (make_url(database_url).host or "").lower()
+        if host.endswith(".render.com"):
+            sslmode = "require"
+
+    if sslmode:
+        connect_args["sslmode"] = sslmode
+
+    return connect_args
 
 
 DATABASE_URL = get_database_url()
 
-connect_args: dict = {
-    "connect_timeout": int(os.getenv("DATABASE_CONNECT_TIMEOUT", "10")),
-}
-sslmode = os.getenv("DATABASE_SSLMODE", "").strip()
-if sslmode:
-    connect_args["sslmode"] = sslmode
-
 engine_kwargs: dict = {
-    "connect_args": connect_args,
+    "connect_args": _build_connect_args(DATABASE_URL),
     "pool_pre_ping": True,
     "pool_recycle": int(os.getenv("DATABASE_POOL_RECYCLE", "300")),
     "pool_timeout": int(os.getenv("DATABASE_POOL_TIMEOUT", "30")),
