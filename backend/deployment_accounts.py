@@ -50,6 +50,7 @@ def _read_first_login(env_name: str | None) -> bool:
 
 def ensure_deployment_accounts() -> int:
     created = 0
+    updated = 0
     repaired = reconcile_deployment_accounts()
     if repaired:
         logger.info("Repaired %s deployment account record(s).", repaired)
@@ -86,8 +87,15 @@ def ensure_deployment_accounts() -> int:
                         existing_user.username,
                     )
                 else:
+                    existing_user.password_hash = hash_password(password)
+                    db.flush()
+                    if not verify_password(password, existing_user.password_hash):
+                        raise RuntimeError(
+                            f"Password verification failed after updating deployment user {existing_user.username}."
+                        )
+                    updated += 1
                     logger.warning(
-                        "Deployment account exists for %s but %s does not match the stored password.",
+                        "Updated deployment account password for %s from configured %s.",
                         existing_user.username,
                         spec.env_password,
                     )
@@ -115,8 +123,10 @@ def ensure_deployment_accounts() -> int:
                 new_user.first_login,
             )
 
-        if created:
+        if created or updated:
             db.commit()
+        if updated:
+            logger.info("Deployment account bootstrap updated %s existing user password(s).", updated)
         return created
     except Exception:
         db.rollback()
