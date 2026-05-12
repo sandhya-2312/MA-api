@@ -41,11 +41,17 @@ def _read_env_value(name: str) -> str:
 
 def _read_first_login(env_name: str | None) -> bool:
     if not env_name:
-        return False
+        return True
     value = _read_env_value(env_name).lower()
     if not value:
+        return True
+    if value in {"0", "false", "no", "off"}:
         return False
     return value in {"1", "true", "yes", "on"}
+
+
+def _has_explicit_first_login(env_name: str | None) -> bool:
+    return bool(env_name and _read_env_value(env_name))
 
 
 def ensure_deployment_accounts() -> int:
@@ -86,7 +92,7 @@ def ensure_deployment_accounts() -> int:
                         spec.role.value,
                         existing_user.username,
                     )
-                else:
+                elif existing_user.first_login:
                     existing_user.password_hash = hash_password(password)
                     db.flush()
                     if not verify_password(password, existing_user.password_hash):
@@ -95,9 +101,14 @@ def ensure_deployment_accounts() -> int:
                         )
                     updated += 1
                     logger.warning(
-                        "Updated deployment account password for %s from configured %s.",
+                        "Reset deployment account password for %s from configured %s while first login is pending.",
                         existing_user.username,
                         spec.env_password,
+                    )
+                else:
+                    logger.info(
+                        "Deployment account %s already completed first login; keeping the stored password.",
+                        existing_user.username,
                     )
                 continue
 
@@ -161,13 +172,17 @@ def reconcile_deployment_accounts() -> int:
                 user.role = spec.role
                 changed = True
 
-            if spec.role == UserRole.ADMIN and not _read_first_login(spec.env_first_login) and user.first_login:
-                logger.warning(
-                    "Repairing deployment admin %s first_login flag from True to False.",
-                    user.username,
-                )
-                user.first_login = False
-                changed = True
+            if _has_explicit_first_login(spec.env_first_login):
+                desired_first_login = _read_first_login(spec.env_first_login)
+                if user.first_login != desired_first_login:
+                    logger.warning(
+                        "Repairing deployment account %s first_login flag from %s to %s.",
+                        user.username,
+                        user.first_login,
+                        desired_first_login,
+                    )
+                    user.first_login = desired_first_login
+                    changed = True
 
             if changed:
                 repaired += 1

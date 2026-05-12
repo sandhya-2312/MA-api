@@ -20,7 +20,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: INITIAL_ADMIN_USERNAME
-        value: Sandhya
+        value: admin
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
       - key: INITIAL_USER_USERNAME

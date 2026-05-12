@@ -13,11 +13,8 @@
    - `INITIAL_ADMIN_USERNAME` / `INITIAL_ADMIN_PASSWORD`
    - `INITIAL_USER_USERNAME` / `INITIAL_USER_PASSWORD`
    - `INITIAL_VIEWER_USERNAME` / `INITIAL_VIEWER_PASSWORD`
-6. Keep `INITIAL_*_FIRST_LOGIN=false` for existing accounts that should open their dashboard immediately after login.
-7. Sign in at the Vercel `/login` page with the matching role credentials:
-   - Admin opens the admin dashboard.
-   - User opens assigned project workflows.
-   - Viewer opens read-only assigned project views.
+6. New deployment accounts default to `first_login=true`. Sign in with the configured default credentials, complete First Login Setup on `/setup`, then continue to the role dashboard with the new username and password.
+7. Set `INITIAL_*_FIRST_LOGIN=false` only for copied or preconfigured accounts that should skip setup and open their dashboard immediately.
 8. Check `GET /health` for database connectivity and table counts after deploy.
 
 ## Setup
