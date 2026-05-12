@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -8,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-from backend.database import verify_database_connection
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
+
+from backend.database import check_database_connection
 from backend.routers import auth, dashboard, projects, users
 
 logger = logging.getLogger(__name__)
@@ -16,12 +19,14 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    try:
-        verify_database_connection()
-        logger.info("Database connection verified.")
-    except Exception:
-        logger.exception("Database connection failed during startup.")
-        raise
+    connected, error = await asyncio.to_thread(check_database_connection)
+    if connected:
+        logger.info("Database connection verified during startup.")
+    else:
+        logger.warning(
+            "Database is unavailable during startup. The API will continue running and retry on requests: %s",
+            error,
+        )
     yield
 
 
@@ -67,8 +72,14 @@ def root():
 
 @app.get("/health")
 def health():
-    verify_database_connection()
-    return {"status": "ok", "database": "connected"}
+    connected, error = check_database_connection(retries=1, retry_delay_seconds=0)
+    if connected:
+        return {"status": "ok", "database": "connected"}
+    return {
+        "status": "degraded",
+        "database": "unavailable",
+        "detail": error,
+    }
 
 
 if __name__ == "__main__":

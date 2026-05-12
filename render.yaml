@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: ./scripts/render-build.sh
     startCommand: ./scripts/render-start.sh
-    healthCheckPath: /health
+    healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
         value: "3.13.2"
