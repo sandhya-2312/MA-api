@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -9,17 +11,25 @@ from backend.utils.auth import create_access_token, get_current_user
 from backend.utils.password import hash_password, verify_password
 
 router = APIRouter(tags=["Authentication"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     # Login API: validates credentials and returns JWT token.
     # Case-insensitive username match (prevents Viewer1 vs viewer1 login failures).
-    user = db.query(User).filter(func.lower(User.username) == payload.username.strip().lower()).first()
-    if not user or not verify_password(payload.password, user.password_hash):
+    username = payload.username.strip()
+    user = db.query(User).filter(func.lower(User.username) == username.lower()).first()
+    if not user:
+        logger.warning("Login rejected for unknown username %s.", username)
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    if not verify_password(payload.password, user.password_hash):
+        logger.warning("Login rejected for user %s due to invalid password.", user.username)
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     token = create_access_token({"sub": user.username, "role": user.role})
+    logger.info("Login accepted for user %s (first_login=%s).", user.username, user.first_login)
     return TokenResponse(
         access_token=token,
         role=user.role,

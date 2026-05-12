@@ -3,4 +3,4 @@ set -euo pipefail
 
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-alembic upgrade head
+python -m alembic upgrade head

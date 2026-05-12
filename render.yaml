@@ -20,7 +20,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: INITIAL_ADMIN_USERNAME
-        sync: false
+        value: admin
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
       - key: DATABASE_URL

@@ -32,6 +32,10 @@ def _normalize_database_url(raw_url: str) -> str:
     return url
 
 
+def normalize_database_url(raw_url: str) -> str:
+    return _normalize_database_url(raw_url)
+
+
 @lru_cache(maxsize=1)
 def get_database_url() -> str:
     raw_url = os.getenv("DATABASE_URL", "").strip()

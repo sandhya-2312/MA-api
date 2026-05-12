@@ -12,6 +12,7 @@ load_dotenv()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 
 from backend.database import check_database_connection
+from backend.database_maintenance import summarize_database
 from backend.db_bootstrap import bootstrap_database
 from backend.routers import auth, dashboard, projects, users
 
@@ -78,12 +79,18 @@ def root():
 @app.get("/health")
 def health():
     connected, error = check_database_connection(retries=1, retry_delay_seconds=0)
-    if connected:
-        return {"status": "ok", "database": "connected"}
+    if not connected:
+        return {
+            "status": "degraded",
+            "database": "unavailable",
+            "detail": error,
+        }
+
+    summary = summarize_database()
     return {
-        "status": "degraded",
-        "database": "unavailable",
-        "detail": error,
+        "status": "ok",
+        "database": "connected",
+        "data": summary,
     }
 
 
