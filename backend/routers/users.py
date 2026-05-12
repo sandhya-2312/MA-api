@@ -11,7 +11,7 @@ from backend.schemas import (
     UserResponse,
     UserUpdateRequest,
 )
-from backend.utils.auth import get_current_user, require_roles
+from backend.utils.auth import create_access_token, get_current_user, require_roles
 from backend.utils.password import hash_password
 
 router = APIRouter(tags=["Users"])
@@ -23,7 +23,7 @@ def _normalize_email(value: str | None) -> str | None:
     return str(value).strip().lower()
 
 
-def build_user_response(user: User) -> UserResponse:
+def build_user_response(user: User, access_token: str | None = None) -> UserResponse:
     return UserResponse(
         id=user.id,
         username=user.username,
@@ -34,6 +34,7 @@ def build_user_response(user: User) -> UserResponse:
         full_name=user.full_name,
         email=user.email,
         designation=user.designation,
+        access_token=access_token,
     )
 
 
@@ -174,6 +175,7 @@ def update_profile(
     current_user: User = Depends(get_current_user),
 ):
     # Profile API: updates current user's profile and optional password.
+    original_username = current_user.username
     duplicate_user = (
         db.query(User)
         .filter(User.username == payload.username, User.id != current_user.id)
@@ -194,10 +196,17 @@ def update_profile(
     if "designation" in update_fields:
         current_user.designation = (payload.designation or "").strip() or None
 
+    password_changed = False
     if payload.new_password:
         current_user.password_hash = hash_password(payload.new_password)
         current_user.first_login = False
+        password_changed = True
 
     db.commit()
     db.refresh(current_user)
-    return build_user_response(current_user)
+
+    access_token = None
+    if password_changed or current_user.username != original_username:
+        access_token = create_access_token({"sub": current_user.username, "role": current_user.role})
+
+    return build_user_response(current_user, access_token=access_token)

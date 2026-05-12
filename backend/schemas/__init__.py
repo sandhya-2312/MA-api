@@ -45,6 +45,7 @@ class UserResponse(BaseModel):
     full_name: str | None = None
     email: str | None = None
     designation: str | None = None
+    access_token: str | None = None
 
 
 class UserCreateResponse(BaseModel):
