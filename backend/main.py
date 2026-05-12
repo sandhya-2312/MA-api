@@ -13,7 +13,7 @@ app = FastAPI(title="MA Backend API", version="1.0.0")
 frontend_origins = os.getenv("FRONTEND_ORIGINS")
 frontend_origin_regex = os.getenv(
     "FRONTEND_ORIGIN_REGEX",
-    r"^https?://([a-z0-9-]+\.netlify\.app|localhost|127\.0\.0\.1)(:\d+)?$",
+    r"^https?://([a-z0-9-]+\.vercel\.app|localhost|127\.0\.0\.1)(:\d+)?$",
 )
 allow_all_origins = os.getenv("ALLOW_ALL_ORIGINS", "false").lower() == "true"
 allowed_origins = (

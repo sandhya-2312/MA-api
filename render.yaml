@@ -12,7 +12,9 @@ services:
       - key: ALLOW_ALL_ORIGINS
         value: "false"
       - key: FRONTEND_ORIGINS
-        sync: false
+        value: https://ma-two-pearl.vercel.app
+      - key: FRONTEND_ORIGIN_REGEX
+        value: ^https?://([a-z0-9-]+\.vercel\.app|localhost|127\.0\.0\.1)(:\d+)?$
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
