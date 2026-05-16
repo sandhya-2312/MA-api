@@ -15,9 +15,24 @@ from backend.schemas import (
     ProjectDataResponse,
     ProjectDataUpdateRequest,
 )
+from backend.services.material_weight import validate_entry_meta
 from backend.utils.auth import require_roles
 
 router = APIRouter(tags=["Dashboard and Data"])
+
+
+def _validated_entry_value_and_meta(meta: dict | None, submitted_value: float) -> tuple[float, dict]:
+    weight, errors = validate_entry_meta(meta)
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
+    normalized = dict(meta or {})
+    normalized["weight"] = str(weight)
+    if abs(float(submitted_value) - weight) > 0.05:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Submitted value ({submitted_value}) does not match calculated weight ({weight} kg).",
+        )
+    return weight, normalized
 
 
 @router.post("/data", response_model=ProjectDataResponse)
@@ -43,11 +58,12 @@ def add_project_data(
         if not assignment:
             raise HTTPException(status_code=403, detail="Project not assigned to user")
 
+    value, meta = _validated_entry_value_and_meta(payload.meta, payload.value)
     new_data = ProjectData(
         project_id=payload.project_id,
-        value=payload.value,
+        value=value,
         timestamp=payload.timestamp,
-        meta=payload.meta,
+        meta=meta,
     )
     db.add(new_data)
     db.commit()
@@ -124,9 +140,12 @@ def update_project_data(
         if not assignment:
             raise HTTPException(status_code=403, detail="Project not assigned to user")
 
-    data_entry.value = payload.value
     if payload.meta is not None:
-        data_entry.meta = payload.meta
+        value, meta = _validated_entry_value_and_meta(payload.meta, payload.value)
+        data_entry.value = value
+        data_entry.meta = meta
+    else:
+        data_entry.value = payload.value
     db.commit()
     db.refresh(data_entry)
     return data_entry

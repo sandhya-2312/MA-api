@@ -1,4 +1,3 @@
-import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
@@ -18,6 +17,7 @@ from backend.schemas import (
     ProjectCreateRequest,
     ProjectResponse,
 )
+from backend.services.material_weight import validate_initial_item
 from backend.utils.auth import require_roles
 
 router = APIRouter(tags=["Projects"])
@@ -56,30 +56,6 @@ def _ensure_no_duplicate_materials(parameters: dict | None) -> None:
         raise HTTPException(status_code=400, detail="Duplicate materials are not allowed")
 
 
-def _parse_num(value: str) -> float:
-    if value is None:
-        return 0.0
-    match = re.search(r"[\d.]+", str(value))
-    return float(match.group()) if match else 0.0
-
-
-def compute_initial_item_weight_kg(item: InitialProjectItem) -> float:
-    length = _parse_num(item.length_mm)
-    width = _parse_num(item.width_mm)
-    thk = _parse_num(item.thk_dia)
-    density = _parse_num(item.density_kg_m3)
-    qty = _parse_num(item.qty)
-    return length * width * thk * density * max(qty, 1) / 1_000_000_000
-
-
-def resolve_initial_item_weight_kg(item: InitialProjectItem) -> float:
-    """Use explicit weight (kg) when provided; otherwise derive from dimensions."""
-    explicit = (item.weight_kg or "").strip()
-    if explicit:
-        return _parse_num(explicit)
-    return compute_initial_item_weight_kg(item)
-
-
 @router.post(
     "/projects",
     response_model=ProjectResponse,
@@ -108,7 +84,12 @@ def create_project(
 
     if payload.initial_items:
         for item in payload.initial_items:
-            weight = round(resolve_initial_item_weight_kg(item), 4)
+            weight, errors = validate_initial_item(item)
+            if errors:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid initial item ({item.item_details or 'material'}): {'; '.join(errors)}",
+                )
             meta = {
                 "user": admin.username,
                 "projectType": item.project_type,
