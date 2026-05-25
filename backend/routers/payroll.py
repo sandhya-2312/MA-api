@@ -123,7 +123,7 @@ def _find_module(
 @router.get("/payroll/locations", response_model=PayrollLocationsResponse)
 def list_payroll_locations(
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("Admin", "User", "Viewer")),
+    _: User = Depends(require_roles("Admin")),
 ):
     rows = db.query(PayrollModule.location).distinct().all()
     found = sorted({(row[0] or "").strip() for row in rows if (row[0] or "").strip()})
@@ -137,7 +137,7 @@ def list_payroll_modules(
     year: Annotated[int | None, Query(ge=2000, le=2100)] = None,
     location: Annotated[str | None, Query()] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("Admin", "User", "Viewer")),
+    _: User = Depends(require_roles("Admin")),
 ):
     query = db.query(PayrollModule)
     if month is not None:
@@ -166,7 +166,7 @@ def resolve_payroll_module(
     year: Annotated[int, Query(ge=2000, le=2100)],
     location: Annotated[str | None, Query()] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("Admin", "User", "Viewer")),
+    _: User = Depends(require_roles("Admin")),
 ):
     module = _find_module(db, month=month, year=year, location=location)
     if not module:
@@ -184,7 +184,7 @@ def resolve_payroll_module(
 def create_payroll_module(
     payload: PayrollModuleCreateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("Admin", "User")),
+    _: User = Depends(require_roles("Admin")),
 ):
     loc = _norm_location(payload.location)
     existing = _find_module(db, month=payload.month, year=payload.year, location=loc)
@@ -242,7 +242,7 @@ def create_payroll_module(
 def get_payroll_module(
     module_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("Admin", "User", "Viewer")),
+    _: User = Depends(require_roles("Admin")),
 ):
     module = db.query(PayrollModule).filter(PayrollModule.id == module_id).first()
     if not module:
@@ -261,7 +261,7 @@ def get_payroll_module(
 def export_payroll_module(
     module_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("Admin", "User", "Viewer")),
+    _: User = Depends(require_roles("Admin")),
 ):
     module = db.query(PayrollModule).filter(PayrollModule.id == module_id).first()
     if not module:
@@ -302,7 +302,7 @@ def add_payroll_employee(
     module_id: int,
     payload: PayrollEmployeePayload,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("Admin", "User")),
+    _: User = Depends(require_roles("Admin")),
 ):
     module = db.query(PayrollModule).filter(PayrollModule.id == module_id).first()
     if not module:
@@ -331,7 +331,7 @@ def update_payroll_employee(
     employee_id: int,
     payload: PayrollEmployeePayload,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("Admin", "User")),
+    _: User = Depends(require_roles("Admin")),
 ):
     row = db.query(PayrollEmployee).filter(PayrollEmployee.id == employee_id).first()
     if not row:
