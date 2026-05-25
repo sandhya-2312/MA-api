@@ -1,9 +1,7 @@
-import csv
-import io
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
@@ -23,6 +21,7 @@ from backend.services.payroll_calc import (
     parse_ot_amount,
     weekday_labels,
 )
+from backend.services.payroll_excel import build_payroll_workbook
 from backend.utils.auth import require_roles
 
 router = APIRouter(tags=["Payroll"])
@@ -274,43 +273,12 @@ def export_payroll_module(
         .order_by(PayrollEmployee.serial_no)
         .all()
     )
-    day_count = days_in_month(module.year, module.month)
-    weekdays = weekday_labels(module.year, module.month)
-
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow([module.title])
-    writer.writerow(["S.No", "Name", "Designation", *[str(d) for d in range(1, day_count + 1)], "OT", "Total Days", "Advance", "Wage", "Food", "Final Payment", "Remarks"])
-    writer.writerow(["", "", "", *weekdays, "", "", "", "", "", "", ""])
-
-    for row in employees:
-        resp = _employee_response(row)
-        att = resp.attendance or {}
-        writer.writerow(
-            [
-                resp.serial_no,
-                resp.name,
-                resp.designation or "",
-                *[att.get(str(d), "") for d in range(1, day_count + 1)],
-                resp.ot_amount,
-                resp.total_days,
-                resp.advance,
-                resp.wage,
-                resp.food or "",
-                resp.final_payment,
-                resp.remarks or "",
-            ]
-        )
-
-    total = sum(_employee_response(emp).final_payment for emp in employees)
-    writer.writerow([])
-    writer.writerow(["", "", "Total", *([""] * day_count), "", "", "", "", "", total, ""])
-
-    buffer.seek(0)
-    filename = f"salaries_{module.year}_{module.month:02d}.csv"
-    return StreamingResponse(
-        iter([buffer.getvalue()]),
-        media_type="text/csv",
+    responses = [_employee_response(emp) for emp in employees]
+    xlsx_bytes = build_payroll_workbook(module, employees, responses)
+    filename = f"salaries_{module.year}_{module.month:02d}.xlsx"
+    return Response(
+        content=xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

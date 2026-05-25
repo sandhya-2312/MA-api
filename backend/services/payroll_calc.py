@@ -12,9 +12,9 @@ def days_in_month(year: int, month: int) -> int:
 
 
 def weekday_labels(year: int, month: int) -> list[str]:
-    labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    """Return short weekday names (Sun–Sat) for each calendar day in the month."""
     count = days_in_month(year, month)
-    return [labels[date(year, month, day).weekday()] for day in range(1, count + 1)]
+    return [date(year, month, day).strftime("%a") for day in range(1, count + 1)]
 
 
 def _day_value_points(raw: object) -> float:
