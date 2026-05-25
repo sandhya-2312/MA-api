@@ -6,7 +6,7 @@ from alembic.config import Config
 from sqlalchemy import inspect
 
 from backend.database import Base, SessionLocal, engine
-from backend.models import Project, ProjectData, User, UserProject  # noqa: F401
+from backend.models import PayrollEmployee, PayrollModule, Project, ProjectData, User, UserProject  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

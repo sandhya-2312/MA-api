@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 
 from backend.database import Base
 from backend.models.enums import UserRole
+from backend.models.payroll import PayrollEmployee, PayrollModule
 
 
 class User(Base):

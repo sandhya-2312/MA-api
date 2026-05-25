@@ -81,6 +81,13 @@ Optional: `python -m backend.seed_dev_users` is a no-op unless you add entries t
 - `GET /dashboard-data?project_id=1`
 - `GET /dashboard-data/bulk?project_ids=1,2,3&from_date=YYYY-MM-DD&to_date=YYYY-MM-DD`
 - `GET /reports/project/{project_id}/summary`
+- `GET /payroll/modules`
+- `POST /payroll/modules`
+- `GET /payroll/modules/{module_id}`
+- `DELETE /payroll/modules/{module_id}`
+- `POST /payroll/modules/{module_id}/employees`
+- `PUT /payroll/employees/{employee_id}`
+- `DELETE /payroll/employees/{employee_id}`
 
 ### Endpoint notes
 

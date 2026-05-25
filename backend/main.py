@@ -14,7 +14,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 from backend.database import check_database_connection
 from backend.database_maintenance import summarize_database
 from backend.db_bootstrap import bootstrap_database
-from backend.routers import auth, dashboard, projects, users
+from backend.routers import auth, dashboard, payroll, projects, users
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +69,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(projects.router)
 app.include_router(dashboard.router)
+app.include_router(payroll.router)
 
 
 @app.get("/")
