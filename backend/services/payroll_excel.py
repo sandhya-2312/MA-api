@@ -5,6 +5,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from backend.services.attendance import format_day_label
 from backend.services.payroll_calc import days_in_month, weekday_labels
 
 if TYPE_CHECKING:
@@ -18,10 +19,13 @@ def _employee_row_dict(employee: "PayrollEmployee", employee_response) -> dict:
         "name": employee_response.name,
         "designation": employee_response.designation or "",
         "attendance": att,
-        "ot": employee_response.ot_amount,
+        "total_ot_hours": employee_response.total_ot_hours,
+        "ot_rate": employee_response.ot_rate,
+        "ot_amount": employee_response.ot_amount,
         "total_days": employee_response.total_days,
         "advance": employee_response.advance,
         "wage": employee_response.wage,
+        "monthly_salary": employee_response.monthly_salary,
         "food": employee_response.food or "",
         "final_payment": employee_response.final_payment,
         "remarks": employee_response.remarks or "",
@@ -50,7 +54,18 @@ def build_payroll_workbook(
     center = Alignment(horizontal="center", vertical="center")
 
     fixed_headers = ["S.No", "Name", "Designation"]
-    tail_headers = ["OT", "Total Days", "Advance", "Wage", "Food", "Final Payment", "Remarks"]
+    tail_headers = [
+        "OT Hrs",
+        "OT Rate",
+        "OT Amt",
+        "Total Days",
+        "Advance",
+        "Wage",
+        "Salary/Month",
+        "Food",
+        "Final Payment",
+        "Remarks",
+    ]
     last_col = len(fixed_headers) + day_count + len(tail_headers)
 
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
@@ -104,16 +119,37 @@ def build_payroll_workbook(
         ws.cell(row=row_num, column=col, value=data["designation"]).border = border
         col += 1
         for day in range(1, day_count + 1):
-            cell = ws.cell(row=row_num, column=col, value=data["attendance"].get(str(day), ""))
+            raw_day = data["attendance"].get(str(day), "")
+            cell = ws.cell(row=row_num, column=col, value=format_day_label(raw_day) or "·")
             cell.border = border
             cell.alignment = center
             if day in sunday_days:
                 cell.fill = sunday_fill
             col += 1
-        for key in ("ot", "total_days", "advance", "wage", "food", "final_payment", "remarks"):
+        for key in (
+            "total_ot_hours",
+            "ot_rate",
+            "ot_amount",
+            "total_days",
+            "advance",
+            "wage",
+            "monthly_salary",
+            "food",
+            "final_payment",
+            "remarks",
+        ):
             cell = ws.cell(row=row_num, column=col, value=data[key])
             cell.border = border
-            if key in ("ot", "advance", "wage", "food", "final_payment"):
+            if key in (
+                "total_ot_hours",
+                "ot_rate",
+                "ot_amount",
+                "advance",
+                "wage",
+                "monthly_salary",
+                "food",
+                "final_payment",
+            ):
                 cell.alignment = Alignment(horizontal="right", vertical="center")
             col += 1
 
@@ -124,7 +160,7 @@ def build_payroll_workbook(
     total_label = ws.cell(row=total_row, column=3, value="Total")
     total_label.font = Font(bold=True)
     total_label.border = border
-    pay_col = len(fixed_headers) + day_count + 5
+    pay_col = len(fixed_headers) + day_count + 8
     total_cell = ws.cell(row=total_row, column=pay_col, value=total_payment)
     total_cell.font = Font(bold=True)
     total_cell.border = border

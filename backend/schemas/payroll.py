@@ -9,8 +9,18 @@ class PayrollEmployeePayload(BaseModel):
     ot: str | None = None
     advance: int = 0
     wage: int = 0
+    monthly_salary: int = 0
     food: int | None = None
     remarks: str | None = None
+    contact_number: str | None = None
+    email: str | None = None
+    address: str | None = None
+    project: str | None = None
+    joining_date: str | None = None
+    bank_name: str | None = None
+    account_number: str | None = None
+    ifsc_code: str | None = None
+    upi_id: str | None = None
 
 
 class PayrollEmployeeResponse(BaseModel):
@@ -24,10 +34,22 @@ class PayrollEmployeeResponse(BaseModel):
     attendance: dict[str, str] | None
     ot: str | None
     ot_amount: int = 0
+    total_ot_hours: float = 0
+    ot_rate: int = 0
     advance: int
     wage: int
+    monthly_salary: int = 0
     food: int | None
     remarks: str | None
+    contact_number: str | None = None
+    email: str | None = None
+    address: str | None = None
+    project: str | None = None
+    joining_date: str | None = None
+    bank_name: str | None = None
+    account_number: str | None = None
+    ifsc_code: str | None = None
+    upi_id: str | None = None
     total_days: float
     final_payment: int
 

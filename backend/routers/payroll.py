@@ -14,11 +14,11 @@ from backend.schemas.payroll import (
     PayrollModuleDetail,
     PayrollModuleSummary,
 )
+from backend.services.attendance import calc_ot_amount, count_total_ot_hours, parse_ot_rate
 from backend.services.payroll_calc import (
     count_total_days,
     days_in_month,
     final_payment,
-    parse_ot_amount,
     weekday_labels,
 )
 from backend.services.payroll_excel import build_payroll_workbook
@@ -55,9 +55,43 @@ def _module_title(month: int, year: int, location: str | None, company_name: str
     return f"{(company_name or 'MC.Engg').strip()} Salaries : {month_label} {year} ( {loc} )"
 
 
+def _strip_optional(value: str | None, *, max_len: int | None = None) -> str | None:
+    cleaned = (value or "").strip()
+    if not cleaned:
+        return None
+    if max_len is not None:
+        return cleaned[:max_len]
+    return cleaned
+
+
+def _apply_employee_payload(row: PayrollEmployee, payload: PayrollEmployeePayload) -> None:
+    row.serial_no = payload.serial_no
+    row.name = payload.name.strip()
+    row.designation = _strip_optional(payload.designation, max_len=100)
+    row.attendance = payload.attendance or {}
+    row.ot = str(payload.ot or "") or None
+    row.advance = payload.advance
+    row.wage = payload.wage
+    row.monthly_salary = payload.monthly_salary
+    row.food = payload.food
+    row.remarks = _strip_optional(payload.remarks, max_len=100)
+    row.contact_number = _strip_optional(payload.contact_number, max_len=20)
+    row.email = _strip_optional(payload.email, max_len=255)
+    row.address = _strip_optional(payload.address, max_len=500)
+    row.project = _strip_optional(payload.project, max_len=200)
+    row.joining_date = _strip_optional(payload.joining_date, max_len=20)
+    row.bank_name = _strip_optional(payload.bank_name, max_len=150)
+    row.account_number = _strip_optional(payload.account_number, max_len=50)
+    row.ifsc_code = _strip_optional(payload.ifsc_code, max_len=20)
+    row.upi_id = _strip_optional(payload.upi_id, max_len=100)
+
+
 def _employee_response(row: PayrollEmployee) -> PayrollEmployeeResponse:
-    total_days = count_total_days(row.attendance)
-    ot_amount = parse_ot_amount(row.ot)
+    attendance = row.attendance if isinstance(row.attendance, dict) else None
+    total_days = count_total_days(attendance)
+    total_ot_hours = count_total_ot_hours(attendance)
+    ot_rate = parse_ot_rate(row.ot)
+    ot_amount = calc_ot_amount(total_ot_hours, ot_rate)
     payment = final_payment(total_days, row.wage or 0, ot_amount, row.advance or 0, row.food)
     return PayrollEmployeeResponse(
         id=row.id,
@@ -65,13 +99,25 @@ def _employee_response(row: PayrollEmployee) -> PayrollEmployeeResponse:
         serial_no=row.serial_no,
         name=row.name,
         designation=row.designation,
-        attendance=row.attendance if isinstance(row.attendance, dict) else None,
+        attendance=attendance,
         ot=row.ot,
         ot_amount=ot_amount,
+        total_ot_hours=total_ot_hours,
+        ot_rate=ot_rate,
         advance=row.advance or 0,
         wage=row.wage or 0,
+        monthly_salary=row.monthly_salary or 0,
         food=row.food,
         remarks=row.remarks,
+        contact_number=row.contact_number,
+        email=row.email,
+        address=row.address,
+        project=row.project,
+        joining_date=row.joining_date,
+        bank_name=row.bank_name,
+        account_number=row.account_number,
+        ifsc_code=row.ifsc_code,
+        upi_id=row.upi_id,
         total_days=total_days,
         final_payment=payment,
     )
@@ -222,8 +268,18 @@ def create_payroll_module(
                     attendance={},
                     advance=src.advance,
                     wage=src.wage,
+                    monthly_salary=src.monthly_salary,
                     food=src.food,
                     remarks=src.remarks,
+                    contact_number=src.contact_number,
+                    email=src.email,
+                    address=src.address,
+                    project=src.project,
+                    joining_date=src.joining_date,
+                    bank_name=src.bank_name,
+                    account_number=src.account_number,
+                    ifsc_code=src.ifsc_code,
+                    upi_id=src.upi_id,
                 )
             )
 
@@ -308,18 +364,8 @@ def add_payroll_employee(
     if not module:
         raise HTTPException(status_code=404, detail="Payroll module not found")
 
-    row = PayrollEmployee(
-        module_id=module.id,
-        serial_no=payload.serial_no,
-        name=payload.name.strip(),
-        designation=(payload.designation or "").strip() or None,
-        attendance=payload.attendance or {},
-        ot=str(payload.ot or "") or None,
-        advance=payload.advance,
-        wage=payload.wage,
-        food=payload.food,
-        remarks=payload.remarks,
-    )
+    row = PayrollEmployee(module_id=module.id)
+    _apply_employee_payload(row, payload)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -337,15 +383,7 @@ def update_payroll_employee(
     if not row:
         raise HTTPException(status_code=404, detail="Employee row not found")
 
-    row.serial_no = payload.serial_no
-    row.name = payload.name.strip()
-    row.designation = (payload.designation or "").strip() or None
-    row.attendance = payload.attendance or {}
-    row.ot = str(payload.ot or "") or None
-    row.advance = payload.advance
-    row.wage = payload.wage
-    row.food = payload.food
-    row.remarks = payload.remarks
+    _apply_employee_payload(row, payload)
     db.commit()
     db.refresh(row)
     return _employee_response(row)
