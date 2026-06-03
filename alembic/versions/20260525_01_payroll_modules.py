@@ -10,6 +10,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
+from backend.migration_helpers import has_table
+
 revision: str = "20260525_01"
 down_revision: Union[str, Sequence[str], None] = "20260507_01"
 branch_labels: Union[str, Sequence[str], None] = None
@@ -17,6 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    if has_table("payroll_modules"):
+        return
+
     op.create_table(
         "payroll_modules",
         sa.Column("id", sa.Integer(), nullable=False),

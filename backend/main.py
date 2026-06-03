@@ -53,8 +53,7 @@ allowed_origins = (
         "http://localhost:5175",
         "http://localhost:5176",
         "http://127.0.0.1:5173",
-        "https://ma-tvo-pearl.vercel.app",
-        "https://ma-tvd-pearl.vercel.app",
+        "https://ma-two-pearl.vercel.app",
     ]
 )
 

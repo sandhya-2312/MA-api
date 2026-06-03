@@ -10,6 +10,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
+from backend.migration_helpers import add_column_if_missing
+
 revision: str = "20260529_02"
 down_revision: Union[str, Sequence[str], None] = "20260529_01"
 branch_labels: Union[str, Sequence[str], None] = None
@@ -17,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
+    add_column_if_missing(
         "payroll_employees",
         sa.Column("monthly_salary", sa.Integer(), nullable=False, server_default="0"),
     )
