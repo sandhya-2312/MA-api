@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -5,7 +7,8 @@ class PayrollEmployeePayload(BaseModel):
     serial_no: int = Field(ge=1)
     name: str = Field(min_length=1, max_length=150)
     designation: str | None = None
-    attendance: dict[str, str] | None = None
+    # Day values: legacy strings ("P", "P+OT(2)") or {"attendanceStatus", "otHours"} objects.
+    attendance: dict[str, Any] | None = None
     ot: str | None = None
     advance: int = 0
     wage: int = 0
@@ -31,7 +34,7 @@ class PayrollEmployeeResponse(BaseModel):
     serial_no: int
     name: str
     designation: str | None
-    attendance: dict[str, str] | None
+    attendance: dict[str, Any] | None
     ot: str | None
     ot_amount: int = 0
     total_ot_hours: float = 0
