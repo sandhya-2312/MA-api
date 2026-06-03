@@ -86,13 +86,23 @@ def _apply_employee_payload(row: PayrollEmployee, payload: PayrollEmployeePayloa
     row.upi_id = _strip_optional(payload.upi_id, max_len=100)
 
 
-def _employee_response(row: PayrollEmployee) -> PayrollEmployeeResponse:
+def _employee_response(row: PayrollEmployee, module: PayrollModule | None = None) -> PayrollEmployeeResponse:
     attendance = row.attendance if isinstance(row.attendance, dict) else None
     total_days = count_total_days(attendance)
     total_ot_hours = count_total_ot_hours(attendance)
     ot_rate = parse_ot_rate(row.ot)
     ot_amount = calc_ot_amount(total_ot_hours, ot_rate)
-    payment = final_payment(total_days, row.wage or 0, ot_amount, row.advance or 0, row.food)
+    mod = module or row.module
+    dim = days_in_month(mod.year, mod.month) if mod else 0
+    payment = final_payment(
+        total_days,
+        row.wage or 0,
+        ot_amount,
+        row.advance or 0,
+        row.food,
+        monthly_salary=row.monthly_salary or 0,
+        days_in_month=dim,
+    )
     return PayrollEmployeeResponse(
         id=row.id,
         module_id=row.module_id,
@@ -129,12 +139,12 @@ def _module_detail(module: PayrollModule, employees: list[PayrollEmployee]) -> P
         **summary.model_dump(),
         weekday_labels=weekday_labels(module.year, module.month),
         days_in_month=days_in_month(module.year, module.month),
-        employees=[_employee_response(emp) for emp in employees],
+        employees=[_employee_response(emp, module) for emp in employees],
     )
 
 
 def _module_summary(module: PayrollModule, employees: list[PayrollEmployee]) -> PayrollModuleSummary:
-    total_payment = sum(_employee_response(emp).final_payment for emp in employees)
+    total_payment = sum(_employee_response(emp, module).final_payment for emp in employees)
     return PayrollModuleSummary(
         id=module.id,
         title=module.title,
@@ -329,7 +339,7 @@ def export_payroll_module(
         .order_by(PayrollEmployee.serial_no)
         .all()
     )
-    responses = [_employee_response(emp) for emp in employees]
+    responses = [_employee_response(emp, module) for emp in employees]
     xlsx_bytes = build_payroll_workbook(module, employees, responses)
     filename = f"salaries_{module.year}_{module.month:02d}.xlsx"
     return Response(
@@ -369,7 +379,7 @@ def add_payroll_employee(
     db.add(row)
     db.commit()
     db.refresh(row)
-    return _employee_response(row)
+    return _employee_response(row, module)
 
 
 @router.put("/payroll/employees/{employee_id}", response_model=PayrollEmployeeResponse)
@@ -386,7 +396,8 @@ def update_payroll_employee(
     _apply_employee_payload(row, payload)
     db.commit()
     db.refresh(row)
-    return _employee_response(row)
+    module = db.query(PayrollModule).filter(PayrollModule.id == row.module_id).first()
+    return _employee_response(row, module)
 
 
 @router.delete("/payroll/employees/{employee_id}")

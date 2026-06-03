@@ -98,13 +98,34 @@ def format_day_label(raw: Any) -> str:
     return status
 
 
+def calc_base_pay(
+    total_days: float,
+    wage: int,
+    *,
+    monthly_salary: int = 0,
+    days_in_month: int = 0,
+) -> int:
+    """Daily wage workers use wage × days; monthly salaried use pro-rated monthly_salary."""
+    if monthly_salary > 0 and wage <= 0 and days_in_month > 0:
+        return round(total_days * (monthly_salary / days_in_month))
+    return round(total_days * (wage or 0))
+
+
 def final_payment(
     total_days: float,
     wage: int,
     ot_amount: int,
     advance: int,
     food: int | None = None,
+    *,
+    monthly_salary: int = 0,
+    days_in_month: int = 0,
 ) -> int:
-    base = round(total_days * (wage or 0))
+    base = calc_base_pay(
+        total_days,
+        wage,
+        monthly_salary=monthly_salary,
+        days_in_month=days_in_month,
+    )
     food_amount = food or 0
     return max(0, base + (ot_amount or 0) - (advance or 0) - food_amount)
