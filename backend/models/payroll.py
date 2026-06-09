@@ -30,6 +30,7 @@ class PayrollEmployee(Base):
     id = Column(Integer, primary_key=True, index=True)
     module_id = Column(Integer, ForeignKey("payroll_modules.id", ondelete="CASCADE"), nullable=False, index=True)
     serial_no = Column(Integer, nullable=False, default=1)
+    emp_id = Column(String(5), nullable=True)
     name = Column(String(150), nullable=False)
     designation = Column(String(100), nullable=True)
     attendance = Column(JSON, nullable=True)
@@ -48,5 +49,7 @@ class PayrollEmployee(Base):
     account_number = Column(String(50), nullable=True)
     ifsc_code = Column(String(20), nullable=True)
     upi_id = Column(String(100), nullable=True)
+    aadhar_number = Column(String(12), nullable=True)
+    pan_number = Column(String(10), nullable=True)
 
     module = relationship("PayrollModule", back_populates="employees")

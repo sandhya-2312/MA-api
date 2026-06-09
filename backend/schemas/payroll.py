@@ -1,10 +1,11 @@
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class PayrollEmployeePayload(BaseModel):
     serial_no: int = Field(ge=1)
+    emp_id: str | None = None
     name: str = Field(min_length=1, max_length=150)
     designation: str | None = None
     # Day values: legacy strings ("P", "P+OT(2)") or {"attendanceStatus", "otHours"} objects.
@@ -24,6 +25,20 @@ class PayrollEmployeePayload(BaseModel):
     account_number: str | None = None
     ifsc_code: str | None = None
     upi_id: str | None = None
+    aadhar_number: str | None = None
+    pan_number: str | None = None
+
+    @field_validator("emp_id")
+    @classmethod
+    def validate_emp_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if len(cleaned) != 5 or not cleaned.isdigit():
+            raise ValueError("EMP ID must be 5 digits (3-digit prefix + 2-digit year, e.g. 00126)")
+        return cleaned
 
 
 class PayrollEmployeeResponse(BaseModel):
@@ -32,6 +47,7 @@ class PayrollEmployeeResponse(BaseModel):
     id: int
     module_id: int
     serial_no: int
+    emp_id: str | None = None
     name: str
     designation: str | None
     attendance: dict[str, Any] | None
@@ -53,6 +69,8 @@ class PayrollEmployeeResponse(BaseModel):
     account_number: str | None = None
     ifsc_code: str | None = None
     upi_id: str | None = None
+    aadhar_number: str | None = None
+    pan_number: str | None = None
     total_days: float
     final_payment: int
 
@@ -86,3 +104,30 @@ class PayrollModuleDetail(PayrollModuleSummary):
 
 class PayrollLocationsResponse(BaseModel):
     locations: list[str]
+
+
+class PayrollCompaniesResponse(BaseModel):
+    companies: list[str]
+
+
+class PayrollProjectAttendanceSummary(BaseModel):
+    module_id: int
+    project: str
+    company_name: str | None
+    employee_count: int
+    present_days: int
+    ot_hours: float
+    absent_days: int
+    half_days: int
+
+
+class PayrollAttendanceSummaryResponse(BaseModel):
+    month: int
+    year: int
+    company_name: str | None
+    projects: list[PayrollProjectAttendanceSummary]
+    total_present_days: int
+    total_ot_hours: float
+    total_absent_days: int
+    total_half_days: int
+    total_employees: int

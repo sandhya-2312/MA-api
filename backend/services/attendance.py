@@ -73,6 +73,39 @@ def count_total_ot_hours(attendance: dict | None) -> float:
     return round(total, 1)
 
 
+def count_attendance_breakdown(attendance: dict | None) -> dict[str, int | float]:
+    """Count day marks: P/P+OT as present, A absent, H half-day; sum OT hours."""
+    present_days = 0
+    absent_days = 0
+    half_days = 0
+    ot_hours = 0.0
+    if not isinstance(attendance, dict):
+        return {
+            "present_days": 0,
+            "absent_days": 0,
+            "half_days": 0,
+            "ot_hours": 0.0,
+        }
+
+    for value in attendance.values():
+        status, hours = parse_day_entry(value)
+        if status in ("P", "P+OT"):
+            present_days += 1
+            if status == "P+OT":
+                ot_hours += hours
+        elif status == "A":
+            absent_days += 1
+        elif status == "H":
+            half_days += 1
+
+    return {
+        "present_days": present_days,
+        "absent_days": absent_days,
+        "half_days": half_days,
+        "ot_hours": round(ot_hours, 1),
+    }
+
+
 def parse_ot_rate(value: Any) -> int:
     if value is None or value == "":
         return 0
@@ -96,6 +129,15 @@ def format_day_label(raw: Any) -> str:
             return f"P+OT({h})"
         return "P+OT"
     return status
+
+
+def derive_pay_rates_from_monthly_salary(monthly_salary: int, days_in_month: int) -> tuple[int, int]:
+    """Daily wage = monthly ÷ days in month; OT/hour = daily wage ÷ 8."""
+    if monthly_salary <= 0 or days_in_month <= 0:
+        return 0, 0
+    wage = round(monthly_salary / days_in_month)
+    ot_rate = round(wage / 8)
+    return wage, ot_rate
 
 
 def calc_base_pay(

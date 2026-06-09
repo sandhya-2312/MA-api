@@ -16,6 +16,7 @@ def _employee_row_dict(employee: "PayrollEmployee", employee_response) -> dict:
     att = employee_response.attendance or {}
     return {
         "serial_no": employee_response.serial_no,
+        "emp_id": employee_response.emp_id or "",
         "name": employee_response.name,
         "designation": employee_response.designation or "",
         "attendance": att,
@@ -43,7 +44,7 @@ def build_payroll_workbook(
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Salaries"
+    ws.title = "Payroll"
 
     thin = Side(style="thin", color="999999")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -53,7 +54,7 @@ def build_payroll_workbook(
     header_font = Font(bold=True, size=9)
     center = Alignment(horizontal="center", vertical="center")
 
-    fixed_headers = ["S.No", "Name", "Designation"]
+    fixed_headers = ["S.No", "EMP ID", "Name", "Designation"]
     tail_headers = [
         "OT Hrs",
         "OT Rate",
@@ -113,6 +114,8 @@ def build_payroll_workbook(
         data = _employee_row_dict(emp, resp)
         col = 1
         ws.cell(row=row_num, column=col, value=data["serial_no"]).border = border
+        col += 1
+        ws.cell(row=row_num, column=col, value=data["emp_id"]).border = border
         col += 1
         ws.cell(row=row_num, column=col, value=data["name"]).border = border
         col += 1
