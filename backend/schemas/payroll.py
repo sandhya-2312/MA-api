@@ -79,7 +79,7 @@ class PayrollModuleCreateRequest(BaseModel):
     month: int = Field(ge=1, le=12)
     year: int = Field(ge=2000, le=2100)
     location: str | None = "Maruti -1 Drydock"
-    company_name: str | None = "MC.Engg"
+    company_name: str | None = "MC.Engineering"
     copy_from_module_id: int | None = None
 
 

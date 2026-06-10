@@ -14,7 +14,7 @@ class PayrollModule(Base):
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
     location = Column(String(200), nullable=True)
-    company_name = Column(String(100), nullable=True, default="MC.Engg")
+    company_name = Column(String(100), nullable=True, default="MC.Engineering")
 
     employees = relationship(
         "PayrollEmployee",

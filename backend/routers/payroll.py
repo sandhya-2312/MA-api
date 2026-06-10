@@ -53,7 +53,7 @@ MONTH_NAMES = [
 ]
 
 DEFAULT_LOCATIONS = ["Maruti -1 Drydock", "Maruti -2 Drydock", "Yard Office"]
-DEFAULT_COMPANIES = ["MC.Engg"]
+DEFAULT_COMPANIES = ["MC.Engineering"]
 
 
 def _norm_location(value: str | None) -> str:
@@ -68,6 +68,7 @@ def _company_name_filter(company: str):
     if company == DEFAULT_COMPANIES[0]:
         return or_(
             PayrollModule.company_name == company,
+            PayrollModule.company_name == "MC.Engg",
             PayrollModule.company_name.is_(None),
             PayrollModule.company_name == "",
         )
@@ -77,7 +78,7 @@ def _company_name_filter(company: str):
 def _module_title(month: int, year: int, location: str | None, company_name: str | None) -> str:
     month_label = MONTH_NAMES[month] if 1 <= month <= 12 else str(month)
     loc = _norm_location(location)
-    return f"{(company_name or 'MC.Engg').strip()} Payroll : {month_label} {year} ( {loc} )"
+    return f"{(company_name or 'MC.Engineering').strip()} Payroll : {month_label} {year} ( {loc} )"
 
 
 def _strip_optional(value: str | None, *, max_len: int | None = None) -> str | None:
