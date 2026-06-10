@@ -16,6 +16,17 @@ class TokenResponse(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    remember_me: bool = False
+
+
+class ForgotPasswordRequest(BaseModel):
+    username: str
+    email: str
+
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+    temporary_password: str | None = None
 
 
 class ChangePasswordRequest(BaseModel):

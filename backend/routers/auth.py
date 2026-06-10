@@ -1,4 +1,6 @@
 import logging
+import os
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -6,12 +8,19 @@ from sqlalchemy import func
 
 from backend.database import get_db
 from backend.models import User
-from backend.schemas import ChangePasswordRequest, LoginRequest, TokenResponse
+from backend.schemas import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    LoginRequest,
+    TokenResponse,
+)
 from backend.utils.auth import create_access_token, get_current_user
-from backend.utils.password import hash_password, verify_password
+from backend.utils.password import generate_random_password, hash_password, verify_password
 
 router = APIRouter(tags=["Authentication"])
 logger = logging.getLogger(__name__)
+REMEMBER_ME_EXPIRE_DAYS = int(os.getenv("REMEMBER_ME_EXPIRE_DAYS", "30"))
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -28,12 +37,46 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         logger.warning("Login rejected for user %s due to invalid password.", user.username)
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    token = create_access_token({"sub": user.username, "role": user.role})
-    logger.info("Login accepted for user %s (first_login=%s).", user.username, user.first_login)
+    expires_delta = (
+        timedelta(days=REMEMBER_ME_EXPIRE_DAYS) if payload.remember_me else None
+    )
+    token = create_access_token({"sub": user.username, "role": user.role}, expires_delta=expires_delta)
+    logger.info(
+        "Login accepted for user %s (first_login=%s, remember_me=%s).",
+        user.username,
+        user.first_login,
+        payload.remember_me,
+    )
     return TokenResponse(
         access_token=token,
         role=user.role,
         first_login=user.first_login,
+    )
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    username = payload.username.strip()
+    email = payload.email.strip().lower()
+    if not username or not email:
+        raise HTTPException(status_code=400, detail="Username and email are required")
+
+    user = db.query(User).filter(func.lower(User.username) == username.lower()).first()
+    if not user or not user.email or user.email.lower() != email:
+        raise HTTPException(
+            status_code=400,
+            detail="Username and email do not match. Verify your details or contact your administrator.",
+        )
+
+    temporary_password = generate_random_password()
+    user.password_hash = hash_password(temporary_password)
+    user.first_login = True
+    db.commit()
+
+    logger.info("Password reset via forgot-password for user %s.", user.username)
+    return ForgotPasswordResponse(
+        message="Password reset successful. Sign in with the temporary password below, then update your credentials.",
+        temporary_password=temporary_password,
     )
 
 
