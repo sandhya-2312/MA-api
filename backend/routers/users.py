@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
 from backend.models.enums import UserRole
-from backend.models import User, UserProject
+from backend.models import Project, User, UserProject
 from backend.schemas import (
     ProfileUpdateRequest,
     UserCreateRequest,
@@ -67,15 +68,31 @@ def create_user(
     # Admin API: creates user with admin-provided credentials.
     if payload.role == UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Create separate admin accounts outside member management")
-    existing_user = db.query(User).filter(User.username == payload.username).first()
+    username = payload.username.strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
+
+    existing_user = (
+        db.query(User).filter(func.lower(User.username) == username.lower()).first()
+    )
     if existing_user:
         raise HTTPException(status_code=409, detail="Username already exists")
 
     normalized_email = _normalize_email(payload.email)
     _ensure_email_available(db, normalized_email, exclude_user_id=None)
 
+    project_ids = list(dict.fromkeys(payload.project_ids))
+    if project_ids:
+        found_ids = {
+            project.id
+            for project in db.query(Project.id).filter(Project.id.in_(project_ids)).all()
+        }
+        missing_ids = [project_id for project_id in project_ids if project_id not in found_ids]
+        if missing_ids:
+            raise HTTPException(status_code=404, detail="One or more projects were not found")
+
     new_user = User(
-        username=payload.username,
+        username=username,
         role=payload.role,
         password_hash=hash_password(payload.password),
         first_login=False,
@@ -86,6 +103,11 @@ def create_user(
         created_by_admin_id=current_admin.id,
     )
     db.add(new_user)
+    db.flush()
+
+    for project_id in project_ids:
+        db.add(UserProject(user_id=new_user.id, project_id=project_id))
+
     db.commit()
     db.refresh(new_user)
 
@@ -132,13 +154,19 @@ def update_user(
     if payload.role == UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Members page supports only Member/Viewer roles")
 
+    username = payload.username.strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
+
     duplicate_user = (
-        db.query(User).filter(User.username == payload.username, User.id != id).first()
+        db.query(User)
+        .filter(func.lower(User.username) == username.lower(), User.id != id)
+        .first()
     )
     if duplicate_user:
         raise HTTPException(status_code=409, detail="Username already exists")
 
-    user.username = payload.username
+    user.username = username
     user.role = payload.role
     update_fields = payload.model_dump(exclude_unset=True)
     if "contact_no" in update_fields:

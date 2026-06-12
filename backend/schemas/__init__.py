@@ -38,6 +38,7 @@ class UserCreateRequest(BaseModel):
     username: str
     password: str = Field(min_length=8)
     role: UserRole
+    project_ids: list[int] = []
     contact_no: str | None = None
     full_name: str | None = None
     email: str | None = None
