@@ -34,5 +34,7 @@ def has_foreign_key(table_name: str, constraint_name: str) -> bool:
 
 
 def add_column_if_missing(table_name: str, column: sa.Column) -> None:
+    if not has_table(table_name):
+        return
     if not has_column(table_name, column.name):
         op.add_column(table_name, column)
