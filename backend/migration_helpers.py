@@ -38,3 +38,38 @@ def add_column_if_missing(table_name: str, column: sa.Column) -> None:
         return
     if not has_column(table_name, column.name):
         op.add_column(table_name, column)
+
+
+def create_index_if_missing(
+    table_name: str,
+    index_name: str,
+    columns: list[str],
+    *,
+    unique: bool = False,
+) -> None:
+    if not has_table(table_name):
+        return
+    if not has_index(table_name, index_name):
+        op.create_index(index_name, table_name, columns, unique=unique)
+
+
+def create_foreign_key_if_missing(
+    constraint_name: str,
+    source_table: str,
+    referent_table: str,
+    local_cols: list[str],
+    remote_cols: list[str],
+    *,
+    ondelete: str | None = None,
+) -> None:
+    if not has_table(source_table) or not has_table(referent_table):
+        return
+    if not has_foreign_key(source_table, constraint_name):
+        op.create_foreign_key(
+            constraint_name,
+            source_table,
+            referent_table,
+            local_cols,
+            remote_cols,
+            ondelete=ondelete,
+        )

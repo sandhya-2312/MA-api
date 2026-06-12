@@ -10,6 +10,8 @@ from typing import Sequence, Union
 from alembic import op
 from sqlalchemy import text
 
+from backend.migration_helpers import has_table
+
 revision: str = "20260506_02"
 down_revision: Union[str, Sequence[str], None] = "20260506_01"
 branch_labels: Union[str, Sequence[str], None] = None
@@ -17,6 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    if not has_table("users"):
+        return
+
     # Existing rows created before full_name/email existed stay NULL until updated via the app.
     # Fill display-safe defaults so reporting / datasources are not all-null (users can edit in My Profile).
     op.execute(

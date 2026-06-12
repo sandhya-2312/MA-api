@@ -52,7 +52,7 @@ def _build_connect_args(database_url: str) -> dict:
     sslmode = os.getenv("DATABASE_SSLMODE", "").strip()
     if not sslmode:
         host = (make_url(database_url).host or "").lower()
-        if host.endswith(".render.com"):
+        if host.endswith(".render.com") or host.endswith(".neon.tech"):
             sslmode = "require"
 
     if sslmode:

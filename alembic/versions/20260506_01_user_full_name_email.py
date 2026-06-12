@@ -10,7 +10,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-from backend.migration_helpers import add_column_if_missing, has_index
+from backend.migration_helpers import add_column_if_missing, create_index_if_missing
 
 revision: str = "20260506_01"
 down_revision: Union[str, Sequence[str], None] = "20260502_01"
@@ -21,8 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     add_column_if_missing("users", sa.Column("full_name", sa.String(length=255), nullable=True))
     add_column_if_missing("users", sa.Column("email", sa.String(length=255), nullable=True))
-    if not has_index("users", "ix_users_email"):
-        op.create_index("ix_users_email", "users", ["email"], unique=True)
+    create_index_if_missing("users", "ix_users_email", ["email"], unique=True)
 
 
 def downgrade() -> None:
